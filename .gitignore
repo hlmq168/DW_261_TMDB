@@ -12,3 +12,4 @@ build/
 dist/
 *.json
 .pytest_cache/
+.env
