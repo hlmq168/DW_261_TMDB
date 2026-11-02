@@ -1,4 +1,4 @@
-**# TMDB Movie Investment Decision Support System (TMDB DSS)
+# TMDB Movie Investment Decision Support System (TMDB DSS)
 
 A Python-based Decision Support System (DSS) for exploring movie-market opportunities and supporting preliminary investment analysis using TMDB-derived data stored in Google BigQuery.
 
