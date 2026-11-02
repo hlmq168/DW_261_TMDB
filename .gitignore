@@ -1,2 +1,8 @@
 Raw Data/*.csv
 tmdb_parts/*.csv
+.dwndss/
+__pycache__/
+notebooks/
+metrics/
+structure.txt
+test_investment.py
