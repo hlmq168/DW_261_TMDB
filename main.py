@@ -7,8 +7,8 @@ from google.cloud import bigquery
 # ============================================================
 # CONFIGURATION: edit these values for your Google Cloud setup
 # ============================================================
-PROJECT_ID = "snappy-spanner-512809-q8"
-DATASET_ID = "tmdb"
+PROJECT_ID = "dsstmdb"
+DATASET_ID = "tmdbw"
 
 RAW_TABLE = "stg_movies_raw"
 CLEAN_TABLE = "stg_movies_clean"
