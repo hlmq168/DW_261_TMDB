@@ -1,2 +1,3 @@
 Raw Data/*.csv
 tmdb_parts/*.csv
+.env

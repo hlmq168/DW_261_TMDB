@@ -1,14 +1,17 @@
+import os
 from pathlib import Path
 import subprocess
 import sys
+import dotenv
 
 from google.cloud import bigquery
 
 # ============================================================
 # CONFIGURATION: edit these values for your Google Cloud setup
 # ============================================================
-PROJECT_ID = "dsstmdb"
-DATASET_ID = "tmdbw"
+dotenv.load_dotenv()
+PROJECT_ID = os.getenv("PROJECT_ID")
+DATASET_ID = os.getenv("DATASET_ID")
 
 RAW_TABLE = "stg_movies_raw"
 CLEAN_TABLE = "stg_movies_clean"
