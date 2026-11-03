@@ -1,5 +1,5 @@
 from pathlib import Path
-
+from src.tmdb_dss.config import DSS_DATASET
 from src.tmdb_dss.connection import (
     get_bigquery_client
 )
@@ -23,6 +23,7 @@ def run_all_sql():
         sql = file.read_text(
             encoding="utf-8"
         )
+        sql = sql.replace("dsstmdb.tmdbdw", DSS_DATASET)
 
         job = client.query(sql)
 

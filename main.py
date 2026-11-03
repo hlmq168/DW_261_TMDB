@@ -10,8 +10,8 @@ from google.cloud import bigquery
 # CONFIGURATION: edit these values for your Google Cloud setup
 # ============================================================
 dotenv.load_dotenv()
-PROJECT_ID = os.getenv("PROJECT_ID")
-DATASET_ID = os.getenv("DATASET_ID")
+PROJECT_ID = os.getenv("GCP_PROJECT_ID")
+DATASET_ID = os.getenv("BQ_DATASET")
 
 RAW_TABLE = "stg_movies_raw"
 CLEAN_TABLE = "stg_movies_clean"
