@@ -83,3 +83,40 @@ def load_content_features():
         "genres": client.query(genre_query).to_dataframe(),
         "companies": client.query(company_query).to_dataframe()
     }
+
+def load_recommendation_movies():
+
+    client = get_bigquery_client()
+
+    query = f"""
+        SELECT
+            id,
+            title,
+            overview,
+            keywords,
+            genres,
+            release_date,
+            popularity
+        FROM `{DSS_DATASET}.stg_movies_clean`
+        WHERE id IS NOT NULL
+    """
+
+    return client.query(query).to_dataframe()
+
+def get_recommendation_source_metadata():
+
+    client = get_bigquery_client()
+
+    table = client.get_table(
+        f"{DSS_DATASET}.stg_movies_clean"
+    )
+
+    return {
+        "table_id": table.full_table_id,
+        "etag": table.etag,
+        "modified": (
+            table.modified.isoformat()
+            if table.modified else None
+        ),
+        "num_rows": table.num_rows
+    }

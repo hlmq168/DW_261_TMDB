@@ -470,158 +470,48 @@ class ContentBasedRecommender:
 
         return similarities
 
-    def _word_aggregated_overview_similarity(
-        self,
-        query_index,
-        candidate_index,
-        min_word_similarity=0.35
-    ):
-
-        query = self.overview_word_matrix[query_index]
-        candidate = self.overview_word_matrix[candidate_index]
-
-        query_word_ids = query.indices
-        candidate_word_ids = candidate.indices
-
-        query_weights = query.data
-        candidate_weights = candidate.data
-
-        if not len(query_word_ids) or not len(candidate_word_ids):
-            return 0.0, []
-
-        query_chars = self.word_char_matrix[query_word_ids]
-        candidate_chars = self.word_char_matrix[candidate_word_ids]
-
-        # Compare individual words using character-level similarity.
-        word_similarities = (
-            query_chars @ candidate_chars.T
-        ).toarray()
-
-        # Each word pair receives one combined contribution.
-        pair_contributions = (
-            word_similarities
-            * np.outer(query_weights, candidate_weights)
-        )
-
-        # Sort possible matches by character similarity.
-        order = np.argsort(
-            word_similarities.ravel()
-        )[::-1]
-
-        used_query_words = set()
-        used_candidate_words = set()
-
-        total_similarity = 0.0
-        matches = []
-
-        query_terms = self.word_vectorizer.get_feature_names_out()
-
-        for flat_index in order:
-
-            query_position, candidate_position = np.unravel_index(
-                flat_index,
-                word_similarities.shape
-            )
-
-            char_similarity = word_similarities[
-                query_position,
-                candidate_position
-            ]
-
-            if char_similarity < min_word_similarity:
-                break
-
-            if query_position in used_query_words:
-                continue
-
-            if candidate_position in used_candidate_words:
-                continue
-
-            contribution = pair_contributions[
-                query_position,
-                candidate_position
-            ]
-
-            query_word_id = query_word_ids[query_position]
-            candidate_word_id = candidate_word_ids[candidate_position]
-
-            matches.append({
-                "query_word": query_terms[query_word_id],
-                "candidate_word": query_terms[candidate_word_id],
-                "word_similarity": float(char_similarity),
-                "contribution": float(contribution)
-            })
-
-            total_similarity += contribution
-
-            used_query_words.add(query_position)
-            used_candidate_words.add(candidate_position)
-
-        return float(total_similarity), matches
-
-    def explain_word_aggregation(
-        self,
-        movie_id,
-        candidate_id,
-        min_word_similarity=0.35
-    ):
-
-        if movie_id not in self.movie_index:
-            raise ValueError("Input movie not found.")
-
-        if candidate_id not in self.movie_index:
-            raise ValueError("Candidate movie not found.")
-
-        query_index = self.movie_index[movie_id]
-        candidate_index = self.movie_index[candidate_id]
-
-        similarity, matches = (
-            self._word_aggregated_overview_similarity(
-                query_index,
-                candidate_index,
-                min_word_similarity
-            )
-        )
-
-        result = pd.DataFrame(matches)
-
-        if not result.empty:
-            result = result.sort_values(
-                "contribution",
-                ascending=False
-            ).reset_index(drop=True)
-
-        return similarity, result
-
     def _similarity_by_feature(
         self,
         query_index,
-        candidate_indices
+        candidate_indices,
+        batch_size=20000
     ):
 
-        contributions = {}
-
-        for name, matrix in self.features.items():
-
-            if name == "genre":
-
-                similarities = self._genre_similarity(
-                    query_index,
-                    candidate_indices
-                )
-
-            else:
-
-                query = matrix[query_index]
-                candidates = matrix[candidate_indices]
-
-                similarities = (
-                    candidates @ query.T
-                ).toarray().ravel()
-
-            contributions[name] = (
-                similarities * self.FEATURE_WEIGHTS[name]
+        contributions = {
+            name: np.zeros(
+                len(candidate_indices),
+                dtype=np.float32
             )
+            for name in self.features
+        }
+
+        for start in range(0, len(candidate_indices), batch_size):
+
+            end = min(start + batch_size, len(candidate_indices))
+
+            batch_indices = candidate_indices[start:end]
+
+            for name, matrix in self.features.items():
+
+                if name == "genre":
+
+                    similarities = self._genre_similarity(
+                        query_index,
+                        batch_indices
+                    )
+
+                else:
+
+                    query = matrix[query_index]
+                    candidates = matrix[batch_indices]
+
+                    similarities = (
+                        candidates @ query.T
+                    ).toarray().ravel()
+
+                contributions[name][start:end] = (
+                    similarities * self.FEATURE_WEIGHTS[name]
+                )
 
         return contributions
 
@@ -699,170 +589,6 @@ class ContentBasedRecommender:
 
         result["similarity_score"] = scores[order]
         result["evidence_coverage"] = evidence[order]
-
-        return result.reset_index(drop=True)
-
-    def recommend_word_aggregated(
-        self,
-        movie_id,
-        top_n=10,
-        candidate_pool=100
-    ):
-
-        if not self.features:
-            raise RuntimeError("Model has not been fitted.")
-
-        if top_n <= 0 or candidate_pool <= 0:
-            raise ValueError("Candidate counts must be positive.")
-
-        # Obtain candidates using the original recommendation method.
-        baseline = self.recommend(
-            movie_id,
-            top_n=candidate_pool
-        )
-
-        query_index = self.movie_index[movie_id]
-
-        candidate_ids = baseline["id"].tolist()
-
-        candidate_indices = np.array([
-            self.movie_index[candidate_id]
-            for candidate_id in candidate_ids
-        ])
-
-        # Preserve the existing keyword and genre contributions.
-        original_contributions = self._similarity_by_feature(
-            query_index,
-            candidate_indices
-        )
-
-        overview_scores = []
-
-        for candidate_index in candidate_indices:
-
-            similarity, _ = (
-                self._word_aggregated_overview_similarity(
-                    query_index,
-                    candidate_index
-                )
-            )
-
-            overview_scores.append(similarity)
-
-        overview_scores = np.asarray(
-            overview_scores,
-            dtype=np.float32
-        )
-
-        result = baseline.copy()
-
-        result["overview_similarity"] = overview_scores
-
-        result["overview_contribution"] = (
-            overview_scores * self.FEATURE_WEIGHTS["overview"]
-        )
-
-        result["similarity_score"] = (
-            result["overview_contribution"]
-            + original_contributions["keywords"]
-            + original_contributions["genre"]
-        )
-
-        result = result.sort_values(
-            "similarity_score",
-            ascending=False
-        ).head(top_n)
-
-        return result.reset_index(drop=True)
-
-    def explain_similarity(
-        self,
-        movie_id,
-        recommended_movie_ids
-    ):
-
-        if not self.features:
-            raise RuntimeError(
-                "Model has not been fitted."
-            )
-
-        if movie_id not in self.movie_index:
-            raise ValueError("Input movie not found.")
-
-        if isinstance(
-            recommended_movie_ids,
-            (int, np.integer)
-        ):
-
-            recommended_movie_ids = [
-                recommended_movie_ids
-            ]
-
-        unknown_ids = [
-            candidate_id
-            for candidate_id in recommended_movie_ids
-            if candidate_id not in self.movie_index
-        ]
-
-        if unknown_ids:
-            raise ValueError(
-                f"Recommended movies not found: {unknown_ids}"
-            )
-
-        query_index = self.movie_index[movie_id]
-
-        candidate_indices = np.array([
-            self.movie_index[candidate_id]
-            for candidate_id in recommended_movie_ids
-        ])
-
-        result = self.movies.iloc[
-            candidate_indices
-        ][
-            ["id", "title", "release_year"]
-        ].copy()
-
-        contributions = self._similarity_by_feature(
-            query_index,
-            candidate_indices
-        )
-
-        for name, values in contributions.items():
-
-            result[f"{name}_contribution"] = values
-
-        contribution_columns = [
-            f"{name}_contribution"
-            for name in self.features
-        ]
-
-        result["similarity_score"] = result[
-            contribution_columns
-        ].sum(axis=1)
-
-        evidence = np.zeros(
-            len(candidate_indices),
-            dtype=np.float32
-        )
-
-        for name, matrix in self.features.items():
-
-            query_available = (
-                matrix[query_index].nnz > 0
-            )
-
-            candidate_available = np.asarray(
-                matrix[candidate_indices].getnnz(axis=1)
-            ).ravel() > 0
-
-            if query_available:
-
-                evidence += (
-                    candidate_available
-                    * self.FEATURE_WEIGHTS[name]
-                )
-
-        result["evidence_coverage"] = evidence
 
         return result.reset_index(drop=True)
 
