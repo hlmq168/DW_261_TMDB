@@ -13,3 +13,6 @@ dist/
 *.json
 .pytest_cache/
 .env
+data/
+old-data/
+tmdbdss/.cache/

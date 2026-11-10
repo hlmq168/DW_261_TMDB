@@ -43,8 +43,8 @@ def calculate_hybrid_score(
         raise ValueError("Weights must sum to 1.")
 
     df["content_score"] = (
-        df["similarity_score"].clip(0, 1) * 100
-    )
+        df["similarity_score"].clip(0, 0.30) / 0.30
+    ) * 100
 
     df["rating_score"] = minmax(
         df["weighted_rating"]

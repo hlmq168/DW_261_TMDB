@@ -1,0 +1,282 @@
+
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            padding: 8px;
+            font-family: Arial, sans-serif;
+            background: transparent;
+            color: var(--text-color, #262730);
+        }
+
+        .movie-grid {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 14px;
+        }
+
+        .movie-card {
+            border: 1px solid var(--border-color, #ddd);
+            border-radius: 12px;
+            padding: 16px;
+            cursor: pointer;
+            background: var(--card-bg, white);
+            transition: border-color 0.15s, background 0.15s;
+            min-width: 0;
+        }
+
+        .movie-card:hover {
+            border-color: #3b82f6;
+        }
+
+        .movie-card.selected {
+            border: 2px solid #3b82f6;
+            background: var(--selected-bg, #eff6ff);
+            padding: 15px;
+        }
+
+        .movie-card.disabled {
+            cursor: not-allowed;
+            opacity: 0.65;
+        }
+
+        .movie-card.disabled:hover {
+            border-color: var(--border-color, #ddd);
+        }
+
+        .movie-title {
+            font-size: 16px;
+            font-weight: 600;
+            margin-bottom: 6px;
+            overflow-wrap: anywhere;
+        }
+
+        .movie-meta {
+            font-size: 12px;
+            color: var(--secondary-text, #888);
+            margin-bottom: 12px;
+        }
+
+        .movie-overview {
+            font-size: 13px;
+            line-height: 1.5;
+            color: var(--secondary-text, #666);
+            display: -webkit-box;
+            -webkit-line-clamp: 3;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+            min-height: 58px;
+        }
+
+        .selection-label {
+            margin-top: 12px;
+            font-size: 12px;
+            color: #2563eb;
+            font-weight: 600;
+        }
+
+        .recommendation-area {
+            margin-top: 18px;
+        }
+
+        #recommend-button {
+            width: 100%;
+            border: none;
+            border-radius: 8px;
+            padding: 12px 18px;
+            background: #2563eb;
+            color: white;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+        }
+
+        #recommend-button:disabled {
+            background: #9ca3af;
+            cursor: not-allowed;
+        }
+
+        #recommend-button:not(:disabled):hover {
+            background: #1d4ed8;
+        }
+
+        @media (max-width: 450px) {
+            .movie-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+<div id="movie-grid" class="movie-grid"></div>
+
+<div class="recommendation-area">
+    <button id="recommend-button" disabled>
+        Find Recommendations
+    </button>
+</div>
+
+<script>
+    let movies = [];
+    let selectedId = null;
+    let isProcessing = false;
+
+    let lastCompletedEventId = null;
+
+    function sendComponentValue(value) {
+        window.parent.postMessage({
+            isStreamlitMessage: true,
+            type: "streamlit:setComponentValue",
+            value: value,
+            dataType: "json"
+        }, "*");
+    }
+
+    function createEventId() {
+        return Date.now().toString() + "-" +
+            Math.random().toString(36).slice(2);
+    }
+
+    function renderMovies() {
+        const grid = document.getElementById("movie-grid");
+        const recommendButton =
+            document.getElementById("recommend-button");
+
+        grid.innerHTML = "";
+
+        movies.forEach(movie => {
+            const card = document.createElement("div");
+
+            const isSelected =
+                Number(movie.id) === Number(selectedId);
+
+            card.className = "movie-card" +
+                (isSelected ? " selected" : "") +
+                (isProcessing ? " disabled" : "");
+
+            const title = document.createElement("div");
+            title.className = "movie-title";
+            title.textContent = movie.title || "Untitled";
+
+            const meta = document.createElement("div");
+            meta.className = "movie-meta";
+
+            const year = movie.release_date
+                ? String(movie.release_date).slice(0, 4)
+                : "Unknown year";
+
+            meta.textContent =
+                `${year} · TMDB ID: ${movie.id}`;
+
+            const overview = document.createElement("div");
+            overview.className = "movie-overview";
+            overview.textContent =
+                movie.overview || "No overview available.";
+
+            card.appendChild(title);
+            card.appendChild(meta);
+            card.appendChild(overview);
+
+            if (isSelected) {
+                const label = document.createElement("div");
+                label.className = "selection-label";
+                label.textContent = isProcessing
+                    ? "✓ Selected · Processing..."
+                    : "✓ Selected";
+
+                card.appendChild(label);
+            }
+
+            card.addEventListener("click", () => {
+                if (isProcessing) return;
+
+                selectedId = Number(movie.id);
+                renderMovies();
+
+                sendComponentValue({
+                    action: "select",
+                    movie_id: selectedId,
+                    event_id: createEventId()
+                });
+            });
+
+            grid.appendChild(card);
+        });
+
+        recommendButton.disabled =
+            selectedId === null || isProcessing;
+
+        recommendButton.textContent = isProcessing
+            ? "Generating Recommendations..."
+            : "Find Recommendations";
+
+        window.parent.postMessage({
+            isStreamlitMessage: true,
+            type: "streamlit:setFrameHeight",
+            height: document.body.scrollHeight + 10
+        }, "*");
+    }
+
+    document.getElementById("recommend-button")
+        .addEventListener("click", () => {
+
+            if (selectedId === null || isProcessing) return;
+
+            isProcessing = true;
+
+            const eventId = createEventId();
+
+            renderMovies();
+
+            sendComponentValue({
+                action: "recommend",
+                movie_id: selectedId,
+                event_id: eventId
+            });
+        });
+
+    window.addEventListener("message", event => {
+        if (
+            !event.data ||
+            event.data.type !== "streamlit:render"
+        ) return;
+
+        const args = event.data.args || {};
+
+        movies = args.movies || [];
+
+        if ("selected_id" in args) {
+            selectedId = args.selected_id === null
+                ? null
+                : Number(args.selected_id);
+        }
+
+        // Python remains the source of truth for completion.
+        isProcessing = Boolean(args.is_processing);
+
+        if (!isProcessing) {
+            lastCompletedEventId = null;
+        }
+
+        renderMovies();
+    });
+
+    window.parent.postMessage({
+        isStreamlitMessage: true,
+        type: "streamlit:componentReady",
+        apiVersion: 1
+    }, "*");
+</script>
+
+</body>
+</html>

@@ -1,7 +1,7 @@
 import pandas as pd
 import numpy as np
 
-from ..data_loader import load_genre_trends
+from .cache import get_cached_genre_trends
 
 
 def calculate_growth(series):
@@ -34,7 +34,7 @@ def analyze_genre_trends(
     Excludes Unknown from genre ranking by default.
     """
 
-    df = load_genre_trends()
+    df = get_cached_genre_trends()
 
     if df.empty:
         return df

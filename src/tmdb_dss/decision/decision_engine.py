@@ -1,4 +1,3 @@
-
 from ..analytics.genre_trend import analyze_genre_trends
 from ..analytics.genre_prediction import predict_genre_potential
 from ..analytics.trending import get_trending_movies
