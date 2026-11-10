@@ -20,9 +20,9 @@ function App() {
       <main className="main-content">
         {activePage === "dashboard" && <Dashboard />}
 
-        {activePage === "recommendations" && <Recommendations />}
-
         {activePage === "investment" && <InvestmentAnalysis />}
+
+        {activePage === "recommendations" && <Recommendations />}
       </main>
     </div>
   );

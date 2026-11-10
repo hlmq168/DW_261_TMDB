@@ -2,8 +2,8 @@
 function Navbar({ activePage, onNavigate }) {
   const navItems = [
     { id: "dashboard", label: "Dashboard" },
-    { id: "recommendations", label: "Recommendations" },
     { id: "investment", label: "Investment Analysis" },
+    { id: "recommendations", label: "Recommendations" }
   ];
 
   return (
