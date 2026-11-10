@@ -16,3 +16,4 @@ dist/
 data/
 old-data/
 tmdbdss/.cache/
+node_modules/
