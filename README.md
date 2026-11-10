@@ -80,3 +80,7 @@ The script stops if a required file is missing or a BigQuery job fails. It print
 - The first part uses schema autodetection; subsequent parts append to that schema. All parts must have the same columns in the same order and compatible data types.
 - BigQuery load/query permissions and Sandbox limits still apply.
 - The original SQL/Python files are not edited. `main.py` performs identifier substitution when submitting SQL.
+
+## Interface Documentation
+
+For instructions on setting up and running the project interface, including the frontend and backend, please refer to **[README_DEPLOY.md](README_DEPLOY.md)**.

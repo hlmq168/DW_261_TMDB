@@ -1,82 +1,74 @@
-# TMDB Data Warehouse — One-command pipeline
+# TMDB Decision Support System
 
-This package adds `main.py` to orchestrate the existing steps:
+A movie analytics and decision-support application built using the TMDB dataset, Google BigQuery, FastAPI, and React.
 
-1. Run the original `split.py` to split the source CSV into 9 parts.
-2. Upload the parts in order into one BigQuery raw table.
-3. Execute `clean.sql` to create `stg_movies_clean`.
-4. Execute `table.sql` to build the 7 Data Warehouse tables.
+The system provides three main features:
 
-The supplied `split.py`, `clean.sql`, and `table.sql` are copied unchanged into this package. `main.py` configures the generic identifiers when submitting SQL to BigQuery.
+- **Dashboard:** Explore movie trends, genre performance, and predicted genre potential.
+- **Movie Recommendations:** Find similar movies using content similarity and hybrid ranking.
+- **Investment Analysis:** Filter and rank movie candidates based on budget, genre, and investment objectives.
 
-## Files
+## Tech Stack
 
-- `main.py` — one-command orchestrator.
-- `split.py` — original CSV splitting script.
-- `clean.sql` — original cleaning SQL.
-- `table.sql` — original Data Warehouse SQL.
-- `requirements.txt` — Python dependency.
-- `README_DEPLOY.md` — this guide.
+- **Data Warehouse:** Google BigQuery
+- **Backend:** Python, FastAPI, Pandas
+- **Frontend:** React.js, JavaScript, CSS
+- **Data Processing:** Python, SQL
 
-## 1. Put the CSV in the expected location
+## Project Structure
 
 ```text
-Raw Data/TMDB_movie_dataset_v11.csv
+TMDB_Dataloader/
+├── backend/          # FastAPI application and API routes
+├── frontend/         # React application
+├── src/tmdb_dss/     # Analytics and decision-support modules
+├── main.py           # BigQuery data loading pipeline
+├── split.py          # Source CSV splitting
+├── clean.sql         # Data cleaning
+├── table.sql         # Data Warehouse table creation
+├── requirements.txt
+├── README_DEPLOY.md
+├── README_DSS.md
+└── README.md
 ```
 
-Keep `main.py`, `split.py`, `clean.sql`, and `table.sql` in the package root.
+## Getting Started
 
-## 2. Configure identifiers
+### 1. Configure BigQuery
 
-Edit the top of `main.py`:
-
-```python
-PROJECT_ID = "YOUR_PROJECT_ID"
-DATASET_ID = "YOUR_DATASET"
-```
-
-Use a Google Cloud project ID and an existing BigQuery dataset. The script creates/replaces these tables:
-- `stg_movies_raw`
-- `stg_movies_clean`
-- `dim_date`
-- `dim_movie`
-- `dim_genre`
-- `dim_company`
-- `fact_movie`
-- `bridge_movie_genre`
-- `bridge_movie_company`
-
-**Warning:** the supplied SQL uses `CREATE OR REPLACE TABLE`; running the pipeline replaces those tables. Back up any existing data you need to keep.
-
-## 3. Install the dependency
-
-```powershell
-python -m pip install -r requirements.txt
-```
-
-## 4. Authenticate
-
-One option is Google Cloud CLI:
+Configure your Google Cloud project and BigQuery dataset, then authenticate:
 
 ```powershell
 gcloud auth application-default login
 ```
 
-This requires the Google Cloud CLI to be installed. Authenticate as an account with permission to create/load/query BigQuery tables in the selected project and dataset.
+For initial data loading and Data Warehouse setup, see [README_DEPLOY.md](README_DEPLOY.md).
 
-## 5. Run everything
+### 2. Start the Backend
 
-From the package directory:
+From the project root:
 
 ```powershell
-python main.py
+.\.dwndss\Scripts\Activate.ps1
+uvicorn backend.main:app --reload --host 127.0.0.1 --port 8000
 ```
 
-The script stops if a required file is missing or a BigQuery job fails. It prints progress for each stage.
+API documentation: http://127.0.0.1:8000/docs
 
-## Important details
+### 3. Start the Frontend
 
-- The source CSV is not included in this ZIP.
-- The first part uses schema autodetection; subsequent parts append to that schema. All parts must have the same columns in the same order and compatible data types.
-- BigQuery load/query permissions and Sandbox limits still apply.
-- The original SQL/Python files are not edited. `main.py` performs identifier substitution when submitting SQL.
+Open another terminal:
+
+```powershell
+cd frontend
+npm install
+npm run dev
+```
+
+Open the application at http://localhost:5173/.
+
+## Notes
+
+- Ensure the BigQuery Data Warehouse is populated before using the application.
+- Run the backend and frontend simultaneously.
+- Update the API URL and BigQuery configuration when using a different environment.
